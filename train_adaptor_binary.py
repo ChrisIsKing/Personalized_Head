@@ -52,7 +52,7 @@ def encode_batch(batch):
 # )
 model = BertForSequenceClassification.from_pretrained(
     model_name,
-    num_labels=dataset_label_num,
+    num_labels=2,
     # config=config,
 )
 
