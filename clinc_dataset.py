@@ -206,15 +206,44 @@ def create_dataset_clinc():
     return  train_text,train_class,test_text,test_class,dev_text,dev_class
 
 
-def format_data(raw):
+def format_data(raw, tokenizer, neg_sample=True):
     texts = []
     labels = []
+    label_names = []
     for i in range(len(raw)):
-        text = raw[i].to_plain_string()
-        label = intent.index(raw[i].get_labels("clinc_data")[0].value)
+        label = raw[i].get_labels("clinc_data")[0].value
+        original_text = raw[i].to_plain_string()
+        text = f"{label} {tokenizer.sep_token} {original_text}" 
         texts.append(text)
-        labels.append(label)
-    return texts, labels
+        labels.append(1)
+        label_names.append(label)
+        if neg_sample:
+            other_labels = [other_label for other_label in intent if other_label != label]
+            for l in other_labels:
+                text = f"{l} {tokenizer.sep_token} {original_text}" 
+                texts.append(text)
+                labels.append(0)
+                label_names.append(l)
+    return texts, labels, label_names
+
+def format_infer_data(raw, tokenizer):
+    texts = []
+    labels = []
+    label_names = []
+    for i in range(len(raw)):
+        label = raw[i].get_labels("clinc_data")[0].value
+        original_text = raw[i].to_plain_string()
+        text = f"{label} {tokenizer.sep_token} {original_text}" 
+        texts.append(text)
+        labels.append(1)
+        label_names.append(label)
+        other_labels = [other_label for other_label in intent if other_label != label]
+        for l in other_labels:
+            text = f"{l} {tokenizer.sep_token} {original_text}" 
+            texts.append(text)
+            labels.append(0)
+            label_names.append(l)
+    return texts, labels, label_names
 
 def get_clinc_dataset(tokenizer):
     # train_text,train_class,test_text,test_class,dev_text,dev_class=create_dataset_clinc()
@@ -224,22 +253,24 @@ def get_clinc_dataset(tokenizer):
         test = pickle.load(file)
     with open('clinc/dev_data_clinc_wo_oos.pkl', 'rb') as file:
         dev = pickle.load(file)
-    train_text, train_class = format_data(train)
-    test_text, test_class = format_data(test)
-    dev_text, dev_class = format_data(dev)
-    return ClincDataset(train_text, train_class, tokenizer), ClincDataset(test_text, test_class, tokenizer), ClincDataset(dev_text, dev_class, tokenizer)
+    train_text, train_class, train_labels = format_data(train, tokenizer, neg_sample=False)
+    test_text, test_class, test_labels = format_infer_data(test, tokenizer)
+    dev_text, dev_class, dev_labels = format_data(dev, tokenizer, neg_sample=False)
+    return ClincDataset(train_text, train_class, tokenizer, train_labels), ClincDataset(test_text, test_class, tokenizer, test_labels), ClincDataset(dev_text, dev_class, tokenizer, dev_labels)
 
 
 
 class ClincDataset(Dataset):
-    def __init__(self, text, label, tokenizer):
+    def __init__(self, text, label, tokenizer, name):
         self.text = text
         self.tokenizer = tokenizer
         self.label = label
+        self.name = name
     def __len__(self):
         return len(self.text)
 
     def __getitem__(self, idx):
         item = self.tokenizer(self.text[idx], max_length=80, truncation=True, padding="max_length")
-        item["label"] = self.label[idx]
+        item["labels"] = self.label[idx]
+        item["name"] = self.name[idx]
         return item

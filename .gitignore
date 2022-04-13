@@ -11,3 +11,6 @@ adaptor_params*
 clinc/*.pkl
 clinc/taggers/*
 env/*
+venv
+.vscode
+__pycache__

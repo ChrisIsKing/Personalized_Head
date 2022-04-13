@@ -1,16 +1,18 @@
 from datasets import load_dataset
 from snip_dataset import get_snip_dataset 
-from clinc_dataset import get_clinc_dataset
+from clinc_dataset import get_clinc_dataset, intent
+from torch.utils.data import DataLoader
 import sys
 import torch
+from torch import nn
 # from transformers import RobertaTokenizer, RobertaConfig, RobertaModelWithHeads
 from transformers import BertTokenizer, BertConfig, BertModelWithHeads, BertModel, BertForSequenceClassification
 from transformers import TrainingArguments, AdapterTrainer, EvalPrediction, TrainerCallback, Trainer
 import numpy as np
+import torch
 # from torchsummary import summary
 # reference: https://github.com/Adapter-Hub/adapter-transformers/blob/master/notebooks/01_Adapter_Training.ipynb
 # python 3.8 cuda 11.2 install using: pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
-
 
 adapters_to_freeze = [int(i) for i in sys.argv[1:]]
 
