@@ -2,14 +2,15 @@ from datasets import load_dataset
 from snip_dataset import get_snip_dataset 
 from clinc_dataset import get_clinc_dataset, intent
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from transformers.trainer_utils import speed_metrics
 import sys
 import torch
-from torch import nn
 # from transformers import RobertaTokenizer, RobertaConfig, RobertaModelWithHeads
 from transformers import BertTokenizer, BertConfig, BertModelWithHeads, BertModel, BertForSequenceClassification
 from transformers import TrainingArguments, AdapterTrainer, EvalPrediction, TrainerCallback, Trainer
 import numpy as np
-import torch
 # from torchsummary import summary
 # reference: https://github.com/Adapter-Hub/adapter-transformers/blob/master/notebooks/01_Adapter_Training.ipynb
 # python 3.8 cuda 11.2 install using: pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
@@ -56,8 +57,10 @@ model = BertForSequenceClassification.from_pretrained(
     # config=config,
 )
 
-model.add_adapter(dataset_name)
-model.train_adapter(dataset_name)
+# model.add_adapter(dataset_name)
+# model.train_adapter(dataset_name)
+model.load_adapter("training_output/checkpoint-46500/clinc_oos")
+model.set_active_adapters("clinc_oos")
 
 
 # model.add_classification_head(
@@ -136,13 +139,30 @@ trainer = AdapterTrainer(
 
 # trainer.add_callback(AdapterDropTrainerCallback())
 
-
-
-
-
 # trainer.add_callback(AdapterDropTrainerCallback())
-trainer.train()
+# trainer.train()
 print("#################AFTER TRAINIG##################")
 # for name, param in model.named_parameters():
 #     print(name, param.data)
-print(trainer.evaluate())
+metrics, output =  trainer.evaluate(eval_dataset=test)
+
+
+preds = []
+gold = []
+count = 0
+
+for i in range(0, len(test), 150):
+  batch = output.predictions[i:i+150]
+  pred = intent[batch[:,1].argmax()]
+  preds.append(pred)
+  gold_label = test[i]['name']
+  gold.append(gold_label)
+  if pred == gold_label:
+    count+=1
+
+print(preds)
+print(gold)
+print(count, len(preds))
+print('Accuracy = {}'.format(count/len(preds)))
+
+
