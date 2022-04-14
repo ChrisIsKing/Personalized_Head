@@ -57,10 +57,10 @@ model = BertForSequenceClassification.from_pretrained(
     # config=config,
 )
 
-# model.add_adapter(dataset_name)
-# model.train_adapter(dataset_name)
-model.load_adapter("training_output/checkpoint-46500/clinc_oos")
-model.set_active_adapters("clinc_oos")
+model.add_adapter(dataset_name)
+model.train_adapter(dataset_name)
+# model.load_adapter("training_output/checkpoint-46500/clinc_oos")
+# model.set_active_adapters("clinc_oos")
 
 
 # model.add_classification_head(
@@ -140,7 +140,7 @@ trainer = AdapterTrainer(
 # trainer.add_callback(AdapterDropTrainerCallback())
 
 # trainer.add_callback(AdapterDropTrainerCallback())
-# trainer.train()
+trainer.train()
 print("#################AFTER TRAINIG##################")
 # for name, param in model.named_parameters():
 #     print(name, param.data)
@@ -160,8 +160,8 @@ for i in range(0, len(test), 150):
   if pred == gold_label:
     count+=1
 
-print(preds)
-print(gold)
+# print(preds)
+# print(gold)
 print(count, len(preds))
 print('Accuracy = {}'.format(count/len(preds)))
 

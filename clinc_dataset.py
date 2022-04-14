@@ -3,6 +3,10 @@ import pandas as pd
 from torch.utils.data import Dataset
 from datasets import load_dataset
 import pickle
+import random
+
+random.seed(4)
+
 intent= [
     "restaurant_reviews",
     "nutrition_info",
@@ -218,7 +222,7 @@ def format_data(raw, tokenizer, neg_sample=True):
         labels.append(1)
         label_names.append(label)
         if neg_sample:
-            other_labels = [other_label for other_label in intent if other_label != label]
+            other_labels = random.sample([other_label for other_label in intent if other_label != label], 2)
             for l in other_labels:
                 text = f"{l} {tokenizer.sep_token} {original_text}" 
                 texts.append(text)
@@ -253,7 +257,7 @@ def get_clinc_dataset(tokenizer):
         test = pickle.load(file)
     with open('clinc/dev_data_clinc_wo_oos.pkl', 'rb') as file:
         dev = pickle.load(file)
-    train_text, train_class, train_labels = format_data(train, tokenizer, neg_sample=False)
+    train_text, train_class, train_labels = format_data(train, tokenizer, neg_sample=True)
     test_text, test_class, test_labels = format_infer_data(test, tokenizer)
     dev_text, dev_class, dev_labels = format_data(dev, tokenizer, neg_sample=False)
     return ClincDataset(train_text, train_class, tokenizer, train_labels), ClincDataset(test_text, test_class, tokenizer, test_labels), ClincDataset(dev_text, dev_class, tokenizer, dev_labels)
