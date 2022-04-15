@@ -1,6 +1,7 @@
-from datasets import load_dataset
+from sklearn.metrics import f1_score
+from transformers.adapters import PrefixTuningConfig
 from snip_dataset import get_snip_dataset 
-from clinc_dataset import get_clinc_dataset, intent
+from clinc_dataset import get_clinc_dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
@@ -18,8 +19,8 @@ import numpy as np
 adapters_to_freeze = [int(i) for i in sys.argv[1:]]
 
 model_name = "bert-base-uncased"
-# dataset_name = "snips_built_in_intents"
-dataset_name = "clinc_oos"
+dataset_name = "snips_built_in_intents"
+# dataset_name = "clinc_oos"
 # dataset_label_num = 150
 tokenizer = BertTokenizer.from_pretrained(model_name)
 if dataset_name == "clinc_oos":
@@ -59,9 +60,11 @@ model = BertForSequenceClassification.from_pretrained(
 
 # model.add_adapter(dataset_name)
 # model.train_adapter(dataset_name)
-model.load_adapter("training_output/checkpoint-140500/clinc_oos")
-model.set_active_adapters("clinc_oos")
-
+# model.load_adapter("training_output/checkpoint-140500/clinc_oos")
+# model.set_active_adapters("clinc_oos")
+config = PrefixTuningConfig(flat=False, prefix_length=30)
+model.add_adapter("prefix_tuning", config=config)
+model.train_adapter("prefix_tuning")
 
 # model.add_classification_head(
 #     dataset_name,
@@ -79,7 +82,7 @@ print("after adaptor")
 
 print("adapter to freeze", adapters_to_freeze)
 
-model.set_active_adapters(dataset_name, skip_layers=adapters_to_freeze)
+model.set_active_adapters("prefix_tuning", skip_layers=adapters_to_freeze)
 
 # for name, param in model.named_parameters():
 #   if 'adapters' in name:
@@ -110,7 +113,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=16,
     per_device_eval_batch_size=16,
     logging_steps=100,
-    output_dir="./training_output",
+    output_dir="./training_output/prefix/snips/first_6",
     overwrite_output_dir=True,
     remove_unused_columns=False,
 )
@@ -140,7 +143,7 @@ trainer = AdapterTrainer(
 # trainer.add_callback(AdapterDropTrainerCallback())
 
 # trainer.add_callback(AdapterDropTrainerCallback())
-# trainer.train()
+trainer.train()
 print("#################AFTER TRAINIG##################")
 # for name, param in model.named_parameters():
 #     print(name, param.data)
@@ -164,4 +167,5 @@ for i in range(0, len(test), 150):
 # print(preds)
 # print(gold)
 print(count, len(preds))
+print(f1_score(gold, preds, average='macro'))
 print('Accuracy = {}'.format(count/len(preds)))

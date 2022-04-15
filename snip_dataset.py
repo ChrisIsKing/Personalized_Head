@@ -5,11 +5,14 @@ import torch.nn.functional as F
 torch.cuda.empty_cache()
 import numpy as np
 import time
+import random
+
+random.seed(4)
 
 
 
 
-def split_balanced(data, target, test_size=0.1):
+def split_balanced(data, target, tokenizer, intent_list, test_size=0.1):
 
     classes = np.unique(target)
     # can give test_size as fraction of input data size of number of samples
@@ -42,20 +45,40 @@ def split_balanced(data, target, test_size=0.1):
     y_test=[]
     X_train=[]
     y_train=[]
+    train_labels = []
+    test_labels = []
     for val in list(ix_test):
-        X_test.append(data[val])
-        y_test.append(target[val])
+        text = f"{intent_list[target[val]]} {tokenizer.sep_token} {data[val]}"
+        X_test.append(text)
+        y_test.append(1)
+        other_labels = [other_label for other_label in intent_list if other_label != intent_list[target[val]]]
+        test_labels.append(intent_list[target[val]])
+        for l in other_labels:
+            text = f"{l} {tokenizer.sep_token} {data[val]}" 
+            X_test.append(text)
+            y_test.append(0)
+            test_labels.append(l)
     for val in list(ix_train):
-        X_train.append(data[val])
-        y_train.append(target[val])
+        text = f"{intent_list[target[val]]} {tokenizer.sep_token} {data[val]}"
+        X_train.append(text)
+        y_train.append(1)
+        train_labels.append(intent_list[target[val]])
+        other_labels = random.sample([other_label for other_label in intent_list if other_label != intent_list[target[val]]], 2)
+        for l in other_labels:
+            text = f"{l} {tokenizer.sep_token} {data[val]}" 
+            X_train.append(text)
+            y_train.append(0)
+
+            train_labels.append(l)
+
     print("x train:", len(X_train))
-    return X_train,y_train,X_test,y_test
+    return X_train,y_train,train_labels,X_test,y_test,test_labels
 
 
 
 
 
-def get_snip_data():
+def get_snip_data(tokenizer):
     with open("snips/snips_text.txt","r",encoding='utf-8') as f:
         text_data=f.read()
         text_data=text_data.strip()
@@ -80,41 +103,44 @@ def get_snip_data():
                 index_list.append(intent_list.index(intent))
     train_ds=[]
     test_ds=[]
-    train_text,train_label,test_text,test_label=split_balanced(text_data,index_list)
-    new_label=[]
-    new_text = []
-    count=0
-    for i in range(0,len(train_label),1861):
-        if count< 7:
-            for j in range(i,i+19):
-                new_label.append(train_label[j])
-                new_text.append(train_text[j])
-            count+=1
+    train_text,train_label,train_label_name,test_text,test_label,test_label_name=split_balanced(text_data,index_list, tokenizer, intent_list)
+
+    # new_label=[]
+    # new_text = []
+    # count=0
+    # for i in range(0,len(train_label),1861):
+    #     if count< 7:
+    #         for j in range(i,i+19):
+    #             new_label.append(train_label[j])
+    #             new_text.append(train_text[j])
+    #         count+=1
 
 
-    return train_text, train_label, test_text, test_label
+    return train_text, train_label, train_label_name, test_text, test_label, test_label_name
 
 def get_snip_dataset(tokenizer):
-    train_text, train_label, test_text, test_label = get_snip_data()
+    train_text, train_label, train_label_name, test_text, test_label, test_label_name = get_snip_data(tokenizer)
     print("length of the train_text:",len(train_text))
-    return SnipDataset(train_text, train_label, tokenizer), SnipDataset(test_text, test_label, tokenizer)
+    return SnipDataset(train_text, train_label, tokenizer, train_label_name), SnipDataset(test_text, test_label, tokenizer, test_label_name)
 
 
 
 class SnipDataset(Dataset):
-    def __init__(self, text, label, tokenizer):
+    def __init__(self, text, label, tokenizer, name):
         self.text = text
         self.tokenizer = tokenizer
         # for i in range(len(text)):
         #     self.text.append(tokenizer(text[i], max_length=80, truncation=True, padding="max_length"))
         # self.label = F.one_hot(torch.tensor(label), num_classes=7)
         self.label = label
+        self.name = name
     def __len__(self):
         return len(self.text)
 
     def __getitem__(self, idx):
         item = self.tokenizer(self.text[idx], max_length=80, truncation=True, padding="max_length")
-        item["label"] = self.label[idx]
+        item["labels"] = self.label[idx]
+        item["name"] = self.name[idx]
         return item
 
 
