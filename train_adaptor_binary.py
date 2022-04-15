@@ -113,7 +113,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=16,
     per_device_eval_batch_size=16,
     logging_steps=100,
-    output_dir="./training_output/prefix/snips/first_6",
+    output_dir="./training_output/prefix/snips/last_6",
     overwrite_output_dir=True,
     remove_unused_columns=False,
 )
@@ -154,9 +154,9 @@ preds = []
 gold = []
 count = 0
 
-for i in range(0, len(test), 150):
-  labels = test[i:i+150]['name']
-  batch = output.predictions[i:i+150]
+for i in range(0, len(test), dataset_label_num):
+  labels = test[i:i+dataset_label_num]['name']
+  batch = output.predictions[i:i+dataset_label_num]
   pred = labels[batch[:,1].argmax()]
   preds.append(pred)
   gold_label = test[i]['name']
